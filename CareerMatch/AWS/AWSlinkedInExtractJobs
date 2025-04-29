@@ -1,0 +1,73 @@
+import json
+import requests
+from bs4 import BeautifulSoup
+
+def scrape_jobs(url):
+    """Scrapes job listings from LinkedIn."""
+    all_links = []
+
+    try:
+        for page in range(0, 1):  # Adjust pages as needed
+            paginated_url = f"{url}&start={page * 25}"
+            response = requests.get(paginated_url)
+
+            if response.status_code != 200:
+                return {"statusCode": 500, "body": json.dumps({"error": f"Failed to fetch the page. Status code: {response.status_code}"})}
+
+            soup = BeautifulSoup(response.text, "html.parser")
+            job_cards = soup.find_all("div", {"class": "base-card"})
+
+            for job_card in job_cards:
+                link = job_card.find("a", {"class": "base-card__full-link"})
+                if link and link.get("href"):
+                    all_links.append(link["href"])
+
+        return {"statusCode": 200, "body": json.dumps({"links": all_links})}
+    
+    except requests.exceptions.RequestException as e:
+        return {"statusCode": 500, "body": json.dumps({"error": f"Error fetching the URL: {e}"})}
+    except Exception as e:
+        return {"statusCode": 500, "body": json.dumps({"error": str(e)})}
+
+def scrape_content(url):
+    """Scrapes job descriptions from LinkedIn job pages."""
+    try:
+        response = requests.get(url)
+        if response.status_code != 200:
+            return {"statusCode": 500, "body": json.dumps({"error": f"Failed to fetch the page. Status code: {response.status_code}"})}
+
+        soup = BeautifulSoup(response.content, "html.parser")
+        target_div = soup.find("div", class_="show-more-less-html__markup show-more-less-html__markup--clamp-after-5 relative overflow-hidden")
+
+        if not target_div:
+            return {"statusCode": 404, "body": json.dumps({"error": "No content found with the specified class."})}
+
+        clean_text = target_div.get_text(separator="\n", strip=True)
+        return {"statusCode": 200, "body": json.dumps({"content": clean_text})}
+
+    except Exception as e:
+        return {"statusCode": 500, "body": json.dumps({"error": str(e)})}
+
+def lambda_handler(event, context):
+    """Main Lambda function handler."""
+    try:
+        body = json.loads(event["body"]) if isinstance(event["body"], str) else event["body"]
+        url = body.get("url")
+
+        if not url:
+            return {"statusCode": 400, "body": json.dumps({"error": "URL is required"})}
+
+        # Handle path extraction more defensively
+        path = event.get("requestContext", {}).get("http", {}).get("path") or event.get("path", "")
+
+        if path == "/scrape/jobs":
+            return scrape_jobs(url)
+        elif path == "/scrape":
+            return scrape_content(url)
+        else:
+            return {"statusCode": 404, "body": json.dumps({"error": "Invalid endpoint"})}
+
+    except json.JSONDecodeError:
+        return {"statusCode": 400, "body": json.dumps({"error": "Invalid JSON format"})}
+    except Exception as e:
+        return {"statusCode": 500, "body": json.dumps({"error": str(e)})}
