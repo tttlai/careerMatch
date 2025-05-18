@@ -7,7 +7,7 @@ import json
 import asyncio
 import requests
 
-async def process_single_url(url, base_url, analyzer, db_client):
+async def process_single_url(url, base_url, analyzer, db_client, user_id):
     """Process a single URL through the entire pipeline immediately"""
     try:
         print(f"\nProcessing URL: {url}")
@@ -22,7 +22,6 @@ async def process_single_url(url, base_url, analyzer, db_client):
             
         try:
             job_details = response.json()
-            # Extract content from the response body if it's in the API Gateway format
             if isinstance(job_details, dict) and 'body' in job_details:
                 job_details = json.loads(job_details['body'])
             print("URL processed successfully")
@@ -38,9 +37,9 @@ async def process_single_url(url, base_url, analyzer, db_client):
             return None
         print("OpenAI analysis complete")
         
-        # 3. Immediately store in Supabase
+        # 3. Immediately store in Supabase with user_id
         print("Storing in Supabase...")
-        await db_client.insert_job_data(analyzed_data, url)
+        await db_client.insert_job_data(analyzed_data, url, user_id)
         print(f"Successfully completed pipeline for: {analyzed_data.get('Job posting title', '')}")
         
         return analyzed_data
@@ -49,7 +48,8 @@ async def process_single_url(url, base_url, analyzer, db_client):
         print(f"Error processing URL {url}: {str(e)}")
         return None
 
-async def main():
+async def process_jobs(user_id: str, job_search_url: str):
+    """Main processing function that can be called by webhook"""
     load_dotenv()
     
     try:
@@ -58,13 +58,11 @@ async def main():
         db_client = SupabaseOperations()
         base_url = os.getenv('JOB_DETAILS_API_URL')
         
-        # Get job search URL and extract all URLs first
-        job_search_url = os.getenv('DEFAULT_JOB_SEARCH_URL')
-        if not job_search_url:
-            raise ValueError("DEFAULT_JOB_SEARCH_URL not set")
+        if not base_url:
+            raise ValueError("JOB_DETAILS_API_URL not set")
         
         # Get all URLs from extract_jobs
-        print("Extracting job URLs...")
+        print(f"Extracting job URLs for user {user_id}...")
         initial_result = extract_jobs(job_search_url)
         
         # Handle API Gateway response format
@@ -78,9 +76,9 @@ async def main():
         
         # Process each URL through the entire pipeline immediately
         successful_jobs = []
-        for i, url in enumerate(all_urls, 1):
+        for i, url in enumerate(all_urls[:10], 1):
             print(f"\nStarting pipeline for job {i} of {len(all_urls)}")
-            processed_job = await process_single_url(url, base_url, analyzer, db_client)
+            processed_job = await process_single_url(url, base_url, analyzer, db_client, user_id)
             if processed_job:
                 successful_jobs.append(processed_job)
                 print(f"Pipeline complete for job {i}")
@@ -92,7 +90,11 @@ async def main():
         
     except Exception as e:
         print(f"Error in main execution: {str(e)}")
-        return None
+        raise
 
 if __name__ == "__main__":
-    asyncio.run(main()) 
+    # For direct script execution, use default values
+    asyncio.run(process_jobs(
+        user_id="default_user",
+        job_search_url=os.getenv('DEFAULT_JOB_SEARCH_URL', '')
+    )) 
