@@ -1,0 +1,823 @@
+{
+  "name": "Cron job Fetch Matched Jobs",
+  "nodes": [
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $vars.local_host_url }}/scrape",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\"url\":\"{{ $json.links }}\"\n} ",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1620,
+        -20
+      ],
+      "id": "ab3da0d0-849b-4300-b67e-8d938cca4e1a",
+      "name": "HTTP Request1",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are a job posting analyst who will extract usefull information from the given input {{ $json.content }}.The required data are\n1. Salary\n2. Location\n3. Company\n4. Position\n5. Job posting Title\n6. Skills\n\nReturn this in clean JSON format without any extra charachters in the structure as shown in ex below:\n\n{\n  \"Salary\": \"£425 a day (INSIDE IR35)\",\n  \"Location\": \"Cambridge, England, United Kingdom\",\n  \"Company\": \"James Chase Consulting\",\n  \"Position\": \"Business Analyst\",\n  \"Job Posting Title\": \"Business Analyst – Hybrid - £425 a day (INSIDE IR35)\",\n  \"Skills\": [\"Java\", \"Tablaue\", \"Excel\"]\n}",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [
+        2640,
+        -40
+      ],
+      "id": "fac3a054-4f85-41fd-824a-a3c33bf0f409",
+      "name": "AI Agent1"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.1,
+      "position": [
+        2600,
+        220
+      ],
+      "id": "2ddc3328-967b-4e00-8e1b-25e9355616eb",
+      "name": "OpenAI Chat Model1",
+      "credentials": {
+        "openAiApi": {
+          "id": "587kwaibBtVkviOB",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\n\nconst parsedItems = items.map((item) => {\n  try {\n    // Ensure the item is a string\n    if (typeof item.json.output === 'string') {\n      // Escape only the necessary characters for valid JSON format\n      item.json.output = item.json.output\n        .replace(/\\\\/g, '\\\\\\\\')   // Escape backslashes\n        .replace(/\"/g, '\\\\\"')     // Escape double quotes\n        .replace(/\\n/g, '\\\\n')    // Escape newlines\n        .replace(/\\r/g, '\\\\r')    // Escape carriage returns\n        .replace(/\\t/g, '\\\\t');   // Escape tabs\n    }\n\n    // If it's not a string, attempt to parse as JSON object\n    else if (typeof item.json.output === 'object' && item.json.output !== null) {\n      // Convert the object to a JSON string\n      item.json.output = JSON.stringify(item.json.output);\n    }\n\n    // If the output is null or undefined, set it to an empty string\n    else if (item.json.output === null || item.json.output === undefined) {\n      item.json.output = '';\n    }\n\n    // Ensure the result is in text format\n    item.json.output = item.json.output.toString();\n\n  } catch (error) {\n    console.log(\"Error processing item:\", item, \"\\nError:\", error);\n    // If an error occurs, set the output to an empty string or a default value\n    item.json.output = '';\n  }\n\n  return item;\n});\n\nreturn parsedItems;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3180,
+        -40
+      ],
+      "id": "e112123b-a889-4aa6-b107-5b5267fc8374",
+      "name": "Code1"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://gojvnbuvkritzznfhwtx.supabase.co/rest/v1/rpc/find_matched_jobs",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdvanZuYnV2a3JpdHp6bmZod3R4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzYyOTYwMTksImV4cCI6MjA1MTg3MjAxOX0.E7VKVQybGf4YVm4o8CfPJoNhRek0xVgzalJKDXj3C5M"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdvanZuYnV2a3JpdHp6bmZod3R4Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTczNjI5NjAxOSwiZXhwIjoyMDUxODcyMDE5fQ.k9ciFQHTskmqpKRXfYMoWQXTRBrVXt8Ds9BYtZay5vA"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"user_embedding\": \"{{ $json.preferences_embedding }}\",\n   \"max_results\": 60\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1120,
+        300
+      ],
+      "id": "7c545b25-4ce0-4478-80f5-13b0e4f22d7e",
+      "name": "HTTP Request3"
+    },
+    {
+      "parameters": {
+        "url": "https://gojvnbuvkritzznfhwtx.supabase.co/rest/v1/preferences_vector?user_id=eq.d8167519-508a-4d26-8f71-f7bc5f4afd72",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdvanZuYnV2a3JpdHp6bmZod3R4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzYyOTYwMTksImV4cCI6MjA1MTg3MjAxOX0.E7VKVQybGf4YVm4o8CfPJoNhRek0xVgzalJKDXj3C5M"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdvanZuYnV2a3JpdHp6bmZod3R4Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTczNjI5NjAxOSwiZXhwIjoyMDUxODcyMDE5fQ.k9ciFQHTskmqpKRXfYMoWQXTRBrVXt8Ds9BYtZay5vA"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        400,
+        300
+      ],
+      "id": "3bce45a7-9114-48ff-84cc-fc5f379318d6",
+      "name": "HTTP Request4"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        500,
+        -40
+      ],
+      "id": "d73c1349-52c7-4d45-a642-07cb30e2a969",
+      "name": "Loop Over Items1"
+    },
+    {
+      "parameters": {
+        "tableId": "jobs_n8n",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "Salary",
+              "fieldValue": "={{ $json.output.Salary }}"
+            },
+            {
+              "fieldId": "Location",
+              "fieldValue": "={{ $json.output.Location }}"
+            },
+            {
+              "fieldId": "Position",
+              "fieldValue": "={{ $json.output.Position }}"
+            },
+            {
+              "fieldId": "Job Posting Title",
+              "fieldValue": "={{ $json.output['Job Posting Title'] }}"
+            },
+            {
+              "fieldId": "Company",
+              "fieldValue": "={{ $json.output.Company }}"
+            },
+            {
+              "fieldId": "user_id",
+              "fieldValue": "=d8167519-508a-4d26-8f71-f7bc5f4afd72"
+            },
+            {
+              "fieldId": "link",
+              "fieldValue": "={{ $('Loop Over Items1').item.json.links }}"
+            },
+            {
+              "fieldId": "published_date",
+              "fieldValue": "="
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        4080,
+        -40
+      ],
+      "id": "c760977a-0433-4bd2-9814-5039216f118d",
+      "name": "Supabase",
+      "executeOnce": true,
+      "credentials": {
+        "supabaseApi": {
+          "id": "esb8EToMiuW9HEVQ",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $('AI Agent1').all();\n\nconst parsedItems = items.map((item) => {\n  try {\n    item.json.output = JSON.parse(item.json.output);\n  } catch (error) {\n    console.log(\"Error parsing JSON: \", error);\n  }\n  return item;\n});\nreturn parsedItems;\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3780,
+        -40
+      ],
+      "id": "16294200-96c3-4559-8e2c-ff53d0bba532",
+      "name": "Code2"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{$vars.local_host_url}}/scrape/jobs",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"url\":\"{{ $json.url }}\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -340,
+        -20
+      ],
+      "id": "7abcf753-106c-4325-bf25-c4fe6fb1c493",
+      "name": "HTTP Request6",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "links",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        200,
+        -40
+      ],
+      "id": "c416323e-67ea-46de-b4fd-9bc953c7649a",
+      "name": "Split Out",
+      "alwaysOutputData": false,
+      "executeOnce": false
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "=https://gojvnbuvkritzznfhwtx.supabase.co/rest/v1/jobs_n8n?id=eq.{{ $json.job_id }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdvanZuYnV2a3JpdHp6bmZod3R4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzYyOTYwMTksImV4cCI6MjA1MTg3MjAxOX0.E7VKVQybGf4YVm4o8CfPJoNhRek0xVgzalJKDXj3C5M"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdvanZuYnV2a3JpdHp6bmZod3R4Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTczNjI5NjAxOSwiZXhwIjoyMDUxODcyMDE5fQ.k9ciFQHTskmqpKRXfYMoWQXTRBrVXt8Ds9BYtZay5vA"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "match_score",
+              "value": "={{ $json.similarity }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2580,
+        460
+      ],
+      "id": "6008c7c8-e2bb-4e12-954e-1faa2e254a4b",
+      "name": "HTTP Request9"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        2100,
+        300
+      ],
+      "id": "74be7031-98c0-4882-a226-d493c6e6cfb0",
+      "name": "Loop Over Items3"
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "=match_results",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        1820,
+        300
+      ],
+      "id": "dc7b461c-fe68-4b52-bf40-d40d6235657c",
+      "name": "Split Out2"
+    },
+    {
+      "parameters": {
+        "jsCode": "const match_results = $items().map(item => item.json);\nreturn [\n  {\n      match_results,\n  },\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1520,
+        300
+      ],
+      "id": "550661c3-ede7-4d56-addd-ba5b596dc5d7",
+      "name": "Code5"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://gojvnbuvkritzznfhwtx.supabase.co/rest/v1/rpc/insert_into_jobs_vector",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdvanZuYnV2a3JpdHp6bmZod3R4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzYyOTYwMTksImV4cCI6MjA1MTg3MjAxOX0.E7VKVQybGf4YVm4o8CfPJoNhRek0xVgzalJKDXj3C5M"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdvanZuYnV2a3JpdHp6bmZod3R4Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTczNjI5NjAxOSwiZXhwIjoyMDUxODcyMDE5fQ.k9ciFQHTskmqpKRXfYMoWQXTRBrVXt8Ds9BYtZay5vA"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n\"p_job_id\":{{ $json.id }},\n\"p_content\":\"{{ $('Code1').item.json.output }}\",\n\"p_metadata\":\"\",\n\"p_embedding\":\"[{{ $('HTTP-POST Create Embeding').item.json.data[0].embedding }}]\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        4860,
+        -40
+      ],
+      "id": "ff859bad-64ae-4a7c-bef3-315f3c0b5121",
+      "name": "HTTP Request11"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/embeddings",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer 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"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"input\": \"{{ $json.output }}\",\n  \"model\": \"text-embedding-ada-002\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3480,
+        -40
+      ],
+      "id": "f3f601f7-2c9c-446a-97d1-412c9742a69e",
+      "name": "HTTP-POST Create Embeding"
+    },
+    {
+      "parameters": {
+        "url": "https://gojvnbuvkritzznfhwtx.supabase.co/rest/v1/profiles?select=id",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdvanZuYnV2a3JpdHp6bmZod3R4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzYyOTYwMTksImV4cCI6MjA1MTg3MjAxOX0.E7VKVQybGf4YVm4o8CfPJoNhRek0xVgzalJKDXj3C5M"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdvanZuYnV2a3JpdHp6bmZod3R4Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTczNjI5NjAxOSwiZXhwIjoyMDUxODcyMDE5fQ.k9ciFQHTskmqpKRXfYMoWQXTRBrVXt8Ds9BYtZay5vA"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -2360,
+        -120
+      ],
+      "id": "d422661a-01b4-4e55-bad6-17680bfb3327",
+      "name": "HTTP Request7"
+    },
+    {
+      "parameters": {
+        "jsCode": "const ids = $items().map(item => item.json.id);\nreturn [\n  {\n    json: {\n      ids,\n    },\n  },\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1940,
+        -120
+      ],
+      "id": "3b66e32b-addf-4f7f-bede-147e697f8aa6",
+      "name": "Code3"
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "ids",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        -1700,
+        -120
+      ],
+      "id": "0683f226-9007-4406-931a-bb981dae388d",
+      "name": "Split Out1"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        -1460,
+        -120
+      ],
+      "id": "0434b14e-1f11-4cca-b4c3-cf467974c815",
+      "name": "Loop Over Items2"
+    },
+    {
+      "parameters": {
+        "url": "=https://gojvnbuvkritzznfhwtx.supabase.co/rest/v1/job_preferences?user_id=eq.{{ $json.ids }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdvanZuYnV2a3JpdHp6bmZod3R4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzYyOTYwMTksImV4cCI6MjA1MTg3MjAxOX0.E7VKVQybGf4YVm4o8CfPJoNhRek0xVgzalJKDXj3C5M"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdvanZuYnV2a3JpdHp6bmZod3R4Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTczNjI5NjAxOSwiZXhwIjoyMDUxODcyMDE5fQ.k9ciFQHTskmqpKRXfYMoWQXTRBrVXt8Ds9BYtZay5vA"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -860,
+        -20
+      ],
+      "id": "8f812db0-8394-4e12-a101-bc24777819e2",
+      "name": "HTTP Request8"
+    },
+    {
+      "parameters": {
+        "jsCode": "const linkedInUrl = JSON.parse($input.first().json.source_urls)\n\n// Create the desired output structure\nconst output = [\n  {\n    url: linkedInUrl[0].linkedIn\n  }\n];\n\n// Return the output\nreturn output;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -640,
+        -20
+      ],
+      "id": "cc52e4c3-70a3-49d1-8955-607fdfe1050c",
+      "name": "Code"
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {}
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        3140,
+        -1240
+      ],
+      "id": "c9b7cf35-f519-4b7e-ab4e-a547dca62c01",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {}
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -2660,
+        -120
+      ],
+      "id": "5756301c-c072-4738-9c58-0a3baabe9a47",
+      "name": "Schedule Trigger1"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "HTTP Request1": {
+      "main": [
+        [
+          {
+            "node": "AI Agent1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Loop Over Items1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent1": {
+      "main": [
+        [
+          {
+            "node": "Code1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent1",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code1": {
+      "main": [
+        [
+          {
+            "node": "HTTP-POST Create Embeding",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request3": {
+      "main": [
+        [
+          {
+            "node": "Code5",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request4": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items1": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request4",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "HTTP Request1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request11",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code2": {
+      "main": [
+        [
+          {
+            "node": "Supabase",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request6": {
+      "main": [
+        [
+          {
+            "node": "Split Out",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Loop Over Items2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Out": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request9": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items3": {
+      "main": [
+        [],
+        [
+          {
+            "node": "HTTP Request9",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Out2": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code5": {
+      "main": [
+        [
+          {
+            "node": "Split Out2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request11": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP-POST Create Embeding": {
+      "main": [
+        [
+          {
+            "node": "Code2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request7": {
+      "main": [
+        [
+          {
+            "node": "Code3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code3": {
+      "main": [
+        [
+          {
+            "node": "Split Out1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Out1": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items2": {
+      "main": [
+        [],
+        [
+          {
+            "node": "HTTP Request8",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request8": {
+      "main": [
+        [
+          {
+            "node": "Code",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request6",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule Trigger1": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request7",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "ce081896-f645-4908-852a-9dd8936135e6",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "58664ef50f640eb6d15348ce3fd4691e6f90f1e1a18ba3aae84de615cf7bb34c"
+  },
+  "id": "8kMZNGJcHL5nKrxs",
+  "tags": []
+}
